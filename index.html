@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>注音學習圖文版</title>
+    <style>
+        /* --- CSS 樣式區域 --- */
+        
+        :root {
+            --primary-color: #FF9A9E;
+            --secondary-color: #FECFEF;
+            --accent-color: #a18cd1;
+            --bg-color: #fbc2eb;
+            --bg-color-2: #a6c1ee;
+            --canvas-bg: rgba(255, 255, 255, 0.7);
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: "Microsoft JhengHei", "Heiti TC", sans-serif;
+            background-image: linear-gradient(120deg, var(--bg-color) 0%, var(--bg-color-2) 100%);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 25px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            padding: 15px 20px;
+            width: 90%;
+            max-width: 420px; /* 稍微加寬 */
+            text-align: center;
+            position: relative;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            height: 90vh; /* 讓卡片適應高度 */
+            max-height: 700px;
+            justify-content: space-between;
+        }
+
+        h1 {
+            color: var(--accent-color);
+            margin: 5px 0;
+            font-size: 1.2rem;
+        }
+
+        /* 進度條 */
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #eee;
+            border-radius: 3px;
+            margin-bottom: 5px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: #4facfe;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .top-controls {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+        }
+
+        .btn-speak {
+            background-color: #ffcc00;
+            border: none;
+            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        .btn-speak:active { transform: scale(0.9); }
+
+        /* --- 圖片與文字區 --- */
+        .visual-area {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 5px;
+            background: #f0f4f8;
+            border-radius: 15px;
+            padding: 10px;
+        }
+
+        .visual-icon {
+            font-size: 3.5rem; /* Emoji 大小 */
+            line-height: 1;
+            filter: drop-shadow(0 2px 3px rgba(0,0,0,0.1));
+        }
+
+        .word-hint {
+            font-size: 1.5rem;
+            color: #333;
+            font-weight: bold;
+        }
+        
+        .word-sub {
+            font-size: 1rem;
+            color: var(--accent-color);
+        }
+
+        /* --- 繪圖區 --- */
+        .display-area {
+            position: relative;
+            width: 260px; /* 固定寬度 */
+            height: 260px; /* 固定高度 */
+            margin: 0 auto;
+            border: 4px dashed var(--accent-color);
+            border-radius: 20px;
+            background-color: var(--canvas-bg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0; /* 防止被壓縮 */
+        }
+
+        .char-background {
+            position: absolute;
+            font-size: 180px;
+            font-weight: bold;
+            color: #e0e0e0;
+            pointer-events: none;
+            user-select: none;
+            z-index: 1;
+            font-family: "BiauKai", "DFKai-SB", serif;
+        }
+
+        canvas {
+            position: absolute;
+            top: 0; left: 0; z-index: 2;
+            cursor: crosshair;
+            touch-action: none;
+        }
+
+        /* --- 控制按鈕 --- */
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            margin: 10px 0;
+            gap: 10px;
+        }
+
+        .btn {
+            border: none;
+            border-radius: 15px;
+            padding: 10px 0;
+            font-size: 1rem;
+            cursor: pointer;
+            font-weight: bold;
+            color: white;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            flex: 1;
+        }
+
+        .btn:active { transform: scale(0.95); }
+        .btn-nav { background-color: #4facfe; }
+        .btn-clear { background-color: #ff9a9e; flex: 0.8;} /* 中間按鈕稍微小一點 */
+        
+        .btn-mic { 
+            background-color: #43e97b;
+            width: 100%;
+            justify-content: center;
+            padding: 15px;
+            font-size: 1.2rem;
+            border-radius: 50px;
+            margin-bottom: 5px;
+        }
+        .btn-mic.listening {
+            background-color: #ff6b6b;
+            animation: pulse 1.5s infinite;
+        }
+
+        #message {
+            min-height: 1.5em;
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: var(--accent-color);
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 107, 107, 0.7); }
+            70% { transform: scale(1.02); box-shadow: 0 0 0 10px rgba(255, 107, 107, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 107, 107, 0); }
+        }
+
+        #confetti-canvas {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 999;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="confetti-canvas"></canvas>
+
+    <div class="card">
+        <div class="top-controls">
+            <button class="btn-speak" onclick="speakCurrentChar()" title="發音">🔈</button>
+        </div>
+
+        <h1>ㄅㄆㄇ 快樂學</h1>
+        
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+
+        <!-- 圖片與文字卡片區 -->
+        <div class="visual-area">
+            <div class="visual-icon" id="visualIcon">👨🏻</div>
+            <div style="text-align: left;">
+                <div class="word-hint" id="wordHint">爸爸</div>
+                <div class="word-sub" id="wordSub">ㄅ</div>
+            </div>
+        </div>
+
+        <!-- 繪圖區 -->
+        <div class="display-area">
+            <div class="char-background" id="charDisplay">ㄅ</div>
+            <canvas id="drawingCanvas" width="260" height="260"></canvas>
+        </div>
+
+        <div id="message"></div>
+
+        <div class="controls">
+            <button class="btn btn-nav" onclick="prevChar()">⬅️ 上一個</button>
+            <button class="btn btn-clear" onclick="clearCanvas()">🧹 重寫</button>
+            <button class="btn btn-nav" onclick="nextChar()">下一個 ➡️</button>
+        </div>
+
+        <button class="btn btn-mic" id="micBtn" onclick="toggleSpeech()">
+            🎤 念給我聽
+        </button>
+    </div>
+
+    <script>
+        // --- 1. 資料庫 (含 Emoji 圖片) ---
+        // icon: 使用 Emoji 代表該詞語的圖片
+        const zhuyinData = [
+            // 聲母
+            { symbol: 'ㄅ', icon: '👨🏻', words: ['爸爸', '包子', '杯子', '筆', '八'] },
+            { symbol: 'ㄆ', icon: '🍇', words: ['葡萄', '朋友', '蘋果', '跑步', '婆婆'] },
+            { symbol: 'ㄇ', icon: '👩🏻', words: ['媽媽', '貓咪', '門', '麵包', '馬'] },
+            { symbol: 'ㄈ', icon: '✈️', words: ['飛機', '房子', '飯', '蜂蜜', '風'] },
+            { symbol: 'ㄉ', icon: '🍰', words: ['蛋糕', '弟弟', '大象', '刀子', '豆漿'] },
+            { symbol: 'ㄊ', icon: '🐰', words: ['兔子', '太陽', '糖果', '天空', '踢球'] },
+            { symbol: 'ㄋ', icon: '🥛', words: ['牛奶', '奶奶', '鳥', '南瓜', '泥土'] },
+            { symbol: 'ㄌ', icon: '🐯', words: ['老虎', '梨子', '藍色', '路', '老師'] },
+            { symbol: 'ㄍ', icon: '🐶', words: ['狗', '哥哥', '公車', '高', '骨頭'] },
+            { symbol: 'ㄎ', icon: '🦖', words: ['恐龍', '卡片', '褲子', '考試', '快樂'] },
+            { symbol: 'ㄏ', icon: '🐒', words: ['猴子', '蝴蝶', '花', '海豚', '喝水'] },
+            { symbol: 'ㄐ', icon: '🐔', words: ['雞', '家', '積木', '機器人', '橘子'] },
+            { symbol: 'ㄑ', icon: '🎈', words: ['氣球', '企鵝', '汽車', '裙子', '青蛙'] },
+            { symbol: 'ㄒ', icon: '🍉', words: ['西瓜', '星星', '洗手', '香蕉', '小狗'] },
+            { symbol: 'ㄓ', icon: '🕷️', words: ['蜘蛛', '桌子', '豬', '珍珠奶茶', '紙'] },
+            { symbol: 'ㄔ', icon: '🦒', words: ['長頸鹿', '吃飯', '車子', '吹風機', '茶'] },
+            { symbol: 'ㄕ', icon: '🦁', words: ['獅子', '手', '書', '樹', '水'] },
+            { symbol: 'ㄖ', icon: '📅', words: ['日曆', '熱', '人', '肉', '日記'] },
+            { symbol: 'ㄗ', icon: '🚶', words: ['走路', '早上', '紫色', '嘴巴', '再見'] },
+            { symbol: 'ㄘ', icon: '🍓', words: ['草莓', '廁所', '菜', '擦子', '彩虹'] },
+            { symbol: 'ㄙ', icon: '☂️', words: ['雨傘', '三', '森林', '松鼠', '四'] }, // 傘含ㄙ音
+            
+            // 韻母 & 結合韻
+            { symbol: 'ㄧ', icon: '👕', words: ['衣服', '椅子', '一', '醫生', '爺爺'] },
+            { symbol: 'ㄨ', icon: '🐢', words: ['烏龜', '五', '屋子', '襪子', '蚊子'] },
+            { symbol: 'ㄩ', icon: '🐟', words: ['魚', '玉米', '雨', '月亮', '浴室'] },
+            { symbol: 'ㄚ', icon: '🦆', words: ['鴨子', '牙齒', '阿姨', '蠟筆', '青蛙'] },
+            { symbol: 'ㄛ', icon: '🔥', words: ['火', '我', '喔', '波浪', '蘿蔔'] },
+            { symbol: 'ㄜ', icon: '🦢', words: ['鵝', '車子', '惡魚', '肚子', '哥哥'] },
+            { symbol: 'ㄝ', icon: '👟', words: ['鞋子', '爺爺', '葉子', '姐姐', '蝴蝶'] },
+            { symbol: 'ㄞ', icon: '❤️', words: ['愛心', '海豚', '白色', '奶奶', '可愛'] },
+            { symbol: 'ㄟ', icon: '🥤', words: ['杯子', '飛機', '妹', '北極熊', '黑色'] },
+            { symbol: 'ㄠ', icon: '🐱', words: ['貓咪', '蛋糕', '草莓', '桃子', '書包'] },
+            { symbol: 'ㄡ', icon: '✋', words: ['手', '猴子', '狗', '球', '海鷗'] },
+            { symbol: 'ㄢ', icon: '⛰️', words: ['山', '雨傘', '雞蛋', '飯', '藍色'] },
+            { symbol: 'ㄣ', icon: '🚪', words: ['門', '人', '雲', '裙子', '感謝'] },
+            { symbol: 'ㄤ', icon: '🍬', words: ['糖果', '湯匙', '太陽', '床', '大象'] },
+            { symbol: 'ㄥ', icon: '🐝', words: ['蜜蜂', '風', '燈籠', '彩虹', '時鐘'] },
+            { symbol: 'ㄦ', icon: '👂', words: ['耳朵', '二', '兒子', '而且', '兒童'] }
+        ];
+
+        let currentIndex = 0;
+
+        // DOM 元素
+        const charDisplay = document.getElementById('charDisplay');
+        const visualIcon = document.getElementById('visualIcon');
+        const wordHint = document.getElementById('wordHint');
+        const wordSub = document.getElementById('wordSub');
+        const canvas = document.getElementById('drawingCanvas');
+        const ctx = canvas.getContext('2d');
+        const messageDiv = document.getElementById('message');
+        const micBtn = document.getElementById('micBtn');
+        const progressFill = document.getElementById('progressFill');
+
+        function init() {
+            updateDisplay(false); 
+            setupCanvas();
+        }
+
+        function updateDisplay(autoSpeak = true) {
+            const data = zhuyinData[currentIndex];
+            
+            // 更新 UI
+            charDisplay.textContent = data.symbol;
+            visualIcon.textContent = data.icon; // 更新圖片 (Emoji)
+            wordHint.textContent = data.words[0]; // 顯示第一個詞：爸爸
+            wordSub.textContent = data.symbol;    // 顯示小注音：ㄅ
+            
+            messageDiv.textContent = "";
+            clearCanvas();
+            
+            // 更新進度條
+            const percent = ((currentIndex + 1) / zhuyinData.length) * 100;
+            progressFill.style.width = `${percent}%`;
+            
+            if(autoSpeak) {
+                setTimeout(speakCurrentChar, 400);
+            }
+        }
+
+        function prevChar() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                updateDisplay(true);
+            }
+        }
+
+        function nextChar() {
+            if (currentIndex < zhuyinData.length - 1) {
+                currentIndex++;
+                updateDisplay(true);
+            }
+        }
+
+        // --- TTS 發音 ---
+        function speakCurrentChar() {
+            const data = zhuyinData[currentIndex];
+            // 朗讀：ㄅ... 爸爸
+            const textToSpeak = `${data.symbol}。${data.words[0]}`;
+            
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(textToSpeak);
+            utterance.lang = 'zh-TW';
+            utterance.rate = 0.8; 
+            utterance.pitch = 1.1;
+            window.speechSynthesis.speak(utterance);
+        }
+
+        // --- Canvas 繪圖 ---
+        let isDrawing = false;
+        function setupCanvas() {
+            ctx.lineWidth = 15;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.strokeStyle = '#FF5252';
+
+            const start = (e) => {
+                isDrawing = true;
+                e.preventDefault(); 
+                const pos = getPos(e);
+                ctx.beginPath();
+                ctx.moveTo(pos.x, pos.y);
+            };
+            const move = (e) => {
+                if (!isDrawing) return;
+                e.preventDefault();
+                const pos = getPos(e);
+                ctx.lineTo(pos.x, pos.y);
+                ctx.stroke();
+            };
+            const end = () => { if(isDrawing) { ctx.closePath(); isDrawing = false; } };
+
+            canvas.addEventListener('mousedown', start);
+            canvas.addEventListener('mousemove', move);
+            canvas.addEventListener('mouseup', end);
+            canvas.addEventListener('mouseout', end);
+
+            canvas.addEventListener('touchstart', start, {passive: false});
+            canvas.addEventListener('touchmove', move, {passive: false});
+            canvas.addEventListener('touchend', end);
+        }
+
+        function getPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            
+            return {
+                x: (clientX - rect.left) * scaleX,
+                y: (clientY - rect.top) * scaleY
+            };
+        }
+
+        function clearCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        // --- 語音辨識 ---
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        let recognition;
+        let isListening = false;
+
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition();
+            recognition.lang = 'zh-TW';
+            recognition.interimResults = false;
+
+            recognition.onstart = () => {
+                isListening = true;
+                micBtn.classList.add('listening');
+                micBtn.textContent = "👂 聆聽中...";
+                messageDiv.textContent = "";
+            };
+
+            recognition.onend = () => {
+                isListening = false;
+                micBtn.classList.remove('listening');
+                micBtn.textContent = "🎤 念給我聽";
+            };
+
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                checkPronunciation(transcript);
+            };
+            
+            recognition.onerror = () => {
+                messageDiv.textContent = "聽不清楚，再大聲一點～";
+            };
+        } else {
+            micBtn.style.display = 'none';
+        }
+
+        function toggleSpeech() {
+            if (!recognition) return;
+            if (isListening) recognition.stop();
+            else recognition.start();
+        }
+
+        function checkPronunciation(input) {
+            const currentData = zhuyinData[currentIndex];
+            let isCorrect = false;
+            
+            if (input.includes(currentData.symbol)) isCorrect = true;
+            for (let word of currentData.words) {
+                if (input.includes(word)) { isCorrect = true; break; }
+            }
+
+            if (isCorrect) {
+                messageDiv.textContent = `答對了！是「${currentData.words[0]}」🎉`;
+                messageDiv.style.color = "green";
+                triggerConfetti();
+                // 語音獎勵
+                const utterance = new SpeechSynthesisUtterance("你好棒！");
+                utterance.lang = 'zh-TW';
+                utterance.rate = 1.2;
+                window.speechSynthesis.speak(utterance);
+            } else {
+                messageDiv.textContent = `好像不是「${input}」喔，再試一次！`;
+                messageDiv.style.color = "#FF5252";
+            }
+        }
+
+        // --- 煙火特效 ---
+        const confettiCanvas = document.getElementById('confetti-canvas');
+        const confettiCtx = confettiCanvas.getContext('2d');
+        let particles = [];
+
+        window.addEventListener('resize', () => {
+            confettiCanvas.width = window.innerWidth;
+            confettiCanvas.height = window.innerHeight;
+        });
+        confettiCanvas.width = window.innerWidth;
+        confettiCanvas.height = window.innerHeight;
+
+        function triggerConfetti() {
+            particles = [];
+            for (let i = 0; i < 80; i++) {
+                particles.push({
+                    x: window.innerWidth / 2,
+                    y: window.innerHeight / 2,
+                    vx: (Math.random() - 0.5) * 15,
+                    vy: (Math.random() - 0.5) * 15 - 5,
+                    color: `hsl(${Math.random() * 360}, 100%, 50%)`,
+                    size: Math.random() * 8 + 4,
+                    gravity: 0.4
+                });
+            }
+            animateConfetti();
+        }
+
+        function animateConfetti() {
+            if (particles.length === 0) return;
+            confettiCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+            for (let i = 0; i < particles.length; i++) {
+                let p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += p.gravity;
+                confettiCtx.fillStyle = p.color;
+                confettiCtx.fillRect(p.x, p.y, p.size, p.size);
+                if (p.y > window.innerHeight) {
+                    particles.splice(i, 1);
+                    i--;
+                }
+            }
+            requestAnimationFrame(animateConfetti);
+        }
+
+        init();
+    </script>
+</body>
+</html>
